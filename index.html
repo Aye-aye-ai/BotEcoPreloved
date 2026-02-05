@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PrelovedPro - No Flicker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap');
+        
+        body { 
+            font-family: 'DM Sans', sans-serif; 
+            background-color: #f3f4f6; 
+            height: 100vh; 
+            height: 100dvh; 
+            overflow: hidden; 
+            display: flex;
+            flex-direction: column;
+        }
+
+        #app-container {
+            width: 100%;
+            height: 100%;
+            max-width: 480px; 
+            margin: 0 auto;
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: 0 0 20px rgba(0,0,0,0.05);
+        }
+
+        /* SCROLL AREA */
+        .chat-scroll-area {
+            flex: 1; 
+            overflow-y: auto; 
+            min-height: 0; 
+            scroll-behavior: smooth;
+            padding: 16px;
+            padding-bottom: 100px; 
+            background: #fafafa;
+        }
+        .chat-scroll-area::-webkit-scrollbar { width: 4px; }
+        .chat-scroll-area::-webkit-scrollbar-thumb { background-color: #e5e7eb; border-radius: 10px; }
+
+        /* BUBBLES */
+        .message-bubble { 
+            max-width: 80%; 
+            border-radius: 16px; 
+            margin-bottom: 12px; 
+            padding: 10px 14px; 
+            font-size: 0.9rem; 
+            position: relative;
+            line-height: 1.4;
+            animation: slideIn 0.3s ease;
+        }
+        
+        .user-msg { 
+            background-color: #be185d; 
+            color: white; 
+            align-self: flex-end; 
+            border-bottom-right-radius: 2px;
+            margin-left: auto;
+        }
+
+        .system-msg {
+            align-self: center;
+            background: rgba(0,0,0,0.05);
+            color: #6b7280;
+            font-size: 0.75rem;
+            padding: 4px 12px;
+            border-radius: 20px;
+            margin: 8px auto;
+            text-align: center;
+        }
+        
+        /* FEED STYLE */
+        .offer-feed-container {
+            width: 100%;
+            margin-bottom: 16px;
+            /* Hapus animasi berulang di sini agar tidak kedip saat diam */
+        }
+
+        .product-card { 
+            background: white; 
+            border-radius: 16px; 
+            overflow: hidden; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            margin-bottom: 12px;
+            border: 1px solid #f3f4f6;
+            transition: transform 0.2s;
+            /* Animasi hanya saat pertama kali muncul */
+            animation: fadeIn 0.5s ease;
+        }
+        .product-card:active { transform: scale(0.98); }
+
+        .product-img-box {
+            width: 100%;
+            height: 180px;
+            background-color: #f3f4f6;
+            position: relative;
+        }
+        .product-img-box img { width: 100%; height: 100%; object-fit: cover; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* CHIPS */
+        .category-scroll { display: flex; gap: 8px; overflow-x: auto; padding: 10px 16px; scrollbar-width: none; }
+        .cat-chip { white-space: nowrap; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 500; border: 1px solid #e5e7eb; background: white; color: #4b5563; }
+        .cat-chip.active { background: #be185d; color: white; border-color: #be185d; }
+    </style>
+</head>
+<body>
+
+    <div id="app-container">
+        
+        <header class="flex-none bg-white p-4 flex justify-between items-center shadow-sm z-20 border-b border-gray-100">
+            <div class="flex items-center gap-2 text-pink-700">
+                <div class="w-8 h-8 bg-pink-600 rounded-full flex items-center justify-center text-white text-xs">
+                    <i class="fa-solid fa-bag-shopping"></i>
+                </div>
+                <h1 class="font-bold text-lg tracking-tight text-gray-800">Preloved<span class="text-pink-600">Pro</span></h1>
+            </div>
+            
+            <div class="flex gap-2">
+                <button onclick="resetApp()" class="text-gray-400 text-xs hover:text-pink-600 px-2">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+                <button id="toggle-role-btn" class="bg-gray-900 text-white px-4 py-1.5 rounded-full text-xs font-bold hover:bg-gray-800 transition shadow-lg">
+                    Mode Seller
+                </button>
+            </div>
+        </header>
+
+        <div id="buyer-view" class="flex-1 flex flex-col min-h-0 relative bg-[#fafafa]">
+            
+            <div class="flex-none bg-white border-b border-gray-100 z-10">
+                <div class="category-scroll">
+                    <button class="cat-chip active" onclick="selectCategory('all', this)"><i class="fa-solid fa-layer-group"></i> Semua</button>
+                    <button class="cat-chip" onclick="selectCategory('baju', this)"><i class="fa-solid fa-shirt"></i> Baju</button>
+                    <button class="cat-chip" onclick="selectCategory('tas', this)"><i class="fa-solid fa-briefcase"></i> Tas</button>
+                    <button class="cat-chip" onclick="selectCategory('sepatu', this)"><i class="fa-solid fa-shoe-prints"></i> Sepatu</button>
+                </div>
+            </div>
+
+            <main id="chat-area" class="chat-scroll-area flex flex-col">
+                </main>
+            
+            <footer class="flex-none absolute bottom-0 w-full p-3 bg-white border-t border-gray-100 flex gap-2 items-center z-30 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
+                <div class="flex-1 relative">
+                    <input type="text" id="user-input" placeholder="Cari barang apa?..." 
+                           class="w-full p-3 pl-4 pr-10 rounded-full bg-gray-100 border-none focus:ring-2 focus:ring-pink-500 text-sm transition-all outline-none">
+                </div>
+                <button id="send-btn" class="bg-pink-600 text-white w-10 h-10 rounded-full flex items-center justify-center hover:bg-pink-700 transition shadow-lg transform active:scale-95">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </footer>
+        </div>
+
+        <div id="seller-view" class="hidden flex-1 flex-col min-h-0 bg-gray-50">
+            <div class="flex-none bg-white px-4 py-3 border-b shadow-sm flex justify-between items-center">
+                <div>
+                    <h2 class="text-gray-800 font-bold text-sm">Permintaan Pasar</h2>
+                    <p class="text-[10px] text-gray-500">Pilih request & upload fotomu</p>
+                </div>
+                <div class="text-xs bg-pink-100 text-pink-700 px-2 py-1 rounded font-bold">
+                    <i class="fa-solid fa-circle text-[8px]"></i> Live
+                </div>
+            </div>
+
+            <div id="seller-requests-panel" class="chat-scroll-area flex flex-col gap-3">
+                <div class="flex flex-col items-center justify-center h-40 text-gray-400 opacity-50 mt-10">
+                    <i class="fa-solid fa-inbox text-4xl mb-2"></i>
+                    <span class="text-xs">Belum ada request masuk</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- CONFIG & STATE ---
+        const STORAGE_KEY = 'ph_pro_v4_stable_'; 
+        let currentRole = 'buyer'; 
+        let currentRequestId = null;
+        let activeCategory = 'all';
+        let pollingInterval = null;
+        
+        // Anti-Flicker State
+        let lastRenderedData = ""; // Menyimpan "signature" data terakhir agar tidak render ulang percuma
+
+        // --- DOM REFERENCES ---
+        const chatArea = document.getElementById('chat-area');
+        const sellerRequestsList = document.getElementById('seller-requests-panel');
+        const userInput = document.getElementById('user-input');
+        
+        // --- INITIALIZATION ---
+        window.onload = () => {
+            const reqs = getStorage('requests');
+            
+            addSystemMessage(`Selamat datang di PrelovedPro <br> Cari barang fashion harga terbaik di sini.`);
+
+            if(reqs.length > 0) {
+                const lastReq = reqs[reqs.length-1];
+                currentRequestId = lastReq.id;
+                startPollingOffers();
+            }
+        };
+
+        // --- BUYER FUNCTIONS ---
+
+        function selectCategory(cat, btn) {
+            activeCategory = cat;
+            document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            userInput.placeholder = `Cari ${cat === 'all' ? 'barang apa?' : cat}...`;
+        }
+
+        function sendRequest(text) {
+            addUserMessage(text);
+            
+            // Reset state anti-flicker untuk request baru
+            lastRenderedData = ""; 
+
+            const loadingId = 'loading-' + Date.now();
+            addSystemMessage(`<i class="fa-solid fa-spinner fa-spin"></i> Mencari seller untuk "${text}"...`, loadingId);
+
+            currentRequestId = Date.now();
+            const requests = getStorage('requests');
+            requests.push({ 
+                id: currentRequestId, 
+                text: text, 
+                category: activeCategory, 
+                timestamp: Date.now(),
+                buyerName: "User" 
+            });
+            saveStorage('requests', requests);
+
+            setTimeout(() => {
+                const loader = document.getElementById(loadingId);
+                if(loader) loader.remove(); 
+                addSystemMessage("Seller sedang mengecek stok... 📸");
+                startPollingOffers();
+            }, 800);
+        }
+
+        function startPollingOffers() {
+            if (pollingInterval) clearInterval(pollingInterval);
+            
+            // Interval cek data setiap 2 detik
+            pollingInterval = setInterval(() => {
+                const offers = getStorage('offers').filter(o => o.requestId == currentRequestId);
+                
+                // --- ANTI-FLICKER LOGIC ---
+                // Buat string unik dari data saat ini
+                const currentDataStr = JSON.stringify(offers);
+                
+                // Jika data sama persis dengan yang sudah dirender, JANGAN lakukan apapun.
+                if (currentDataStr !== lastRenderedData) {
+                    if (offers.length > 0) {
+                        lastRenderedData = currentDataStr; // Update data terakhir
+                        renderAuction(offers); // Baru render ulang
+                    }
+                }
+            }, 2000);
+        }
+
+        function renderAuction(offers) {
+            offers.sort((a, b) => parseInt(a.price) - parseInt(b.price));
+
+            const oldList = document.getElementById(`offer-list-${currentRequestId}`);
+            if (oldList) oldList.remove();
+
+            const feedContainer = document.createElement('div');
+            feedContainer.id = `offer-list-${currentRequestId}`;
+            feedContainer.className = 'offer-feed-container';
+            
+            feedContainer.innerHTML = `
+                <div class="flex items-center gap-2 mb-3 px-1 mt-2">
+                    <div class="h-px bg-gray-300 flex-1"></div>
+                    <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                        ${offers.length} Hasil Ditemukan
+                    </span>
+                    <div class="h-px bg-gray-300 flex-1"></div>
+                </div>
+                <div class="flex flex-col gap-0" id="card-wrapper-${currentRequestId}"></div>
+            `;
+            chatArea.appendChild(feedContainer);
+            
+            const listWrapper = feedContainer.querySelector(`#card-wrapper-${currentRequestId}`);
+
+            offers.forEach((offer) => {
+                let condBadge = offer.condition === 'Like New' 
+                    ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700">Like New</span>' 
+                    : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-700">Preloved</span>';
+
+                const displayImage = offer.image || 'https://via.placeholder.com/400x300/f3f4f6/9ca3af?text=No+Photo';
+
+                const card = document.createElement('div');
+                card.className = 'product-card';
+                card.innerHTML = `
+                    <div class="product-img-box">
+                        <img src="${displayImage}" alt="${offer.itemName}" loading="lazy">
+                        <div class="absolute top-0 right-0 bg-pink-600 text-white px-3 py-1 rounded-bl-xl text-xs font-bold shadow-md">
+                            Rp ${parseInt(offer.price).toLocaleString()}
+                        </div>
+                    </div>
+                    <div class="p-3">
+                        <div class="flex justify-between items-start mb-1">
+                            <h3 class="font-bold text-gray-800 text-sm leading-tight line-clamp-2">${offer.itemName}</h3>
+                            ${condBadge}
+                        </div>
+                        <div class="flex justify-between items-end mt-2">
+                            <div class="text-[11px] text-gray-500 flex items-center gap-1">
+                                <i class="fa-solid fa-store text-pink-400"></i> ${offer.sellerName}
+                            </div>
+                            <button onclick="openWhatsapp('${offer.sellerPhone}', '${offer.itemName}', '${offer.price}')" 
+                                    class="bg-[#25D366] active:bg-[#128C7E] text-white text-xs px-4 py-2 rounded-full font-bold shadow-sm flex items-center gap-1.5 transition-colors">
+                                <i class="fa-brands fa-whatsapp text-sm"></i> Chat
+                            </button>
+                        </div>
+                    </div>
+                `;
+                listWrapper.appendChild(card);
+            });
+            
+            scrollToBottom();
+        }
+
+        // --- SELLER FUNCTIONS ---
+
+        function loadSellerRequests() {
+            const requests = getStorage('requests');
+            sellerRequestsList.innerHTML = '';
+            
+            if (requests.length === 0) {
+                sellerRequestsList.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-40 text-gray-400 opacity-50 mt-10">
+                        <i class="fa-solid fa-inbox text-4xl mb-2"></i>
+                        <span class="text-xs">Belum ada request masuk</span>
+                    </div>`;
+                return;
+            }
+
+            requests.reverse().forEach(req => {
+                const card = document.createElement('div');
+                card.className = 'bg-white p-4 rounded-xl shadow-sm border border-gray-200';
+                card.innerHTML = `
+                    <div class="flex gap-3 mb-3 border-b border-gray-50 pb-3">
+                        <div class="w-10 h-10 rounded-full bg-pink-50 flex items-center justify-center text-pink-600 shrink-0">
+                            <i class="fa-solid fa-user"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="bg-gray-100 text-gray-600 text-[10px] font-bold px-2 py-0.5 rounded uppercase">${req.category}</span>
+                                <span class="text-[10px] text-gray-400">Baru saja</span>
+                            </div>
+                            <p class="font-bold text-gray-800 text-sm mt-1">"${req.text}"</p>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-2">
+                        <div class="relative">
+                            <input type="file" id="file-${req.id}" accept="image/*" class="hidden" onchange="previewImage(this, '${req.id}')">
+                            <label for="file-${req.id}" class="w-full h-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 hover:border-pink-400 transition bg-gray-50" id="preview-box-${req.id}">
+                                <i class="fa-solid fa-camera text-gray-400 text-xl mb-1"></i>
+                                <span class="text-[10px] text-gray-500">Upload Foto Barang</span>
+                            </label>
+                        </div>
+
+                        <input type="text" id="offer-name-${req.id}" placeholder="Nama Barang" class="w-full p-2 bg-white rounded border border-gray-200 text-sm outline-none focus:border-pink-500">
+                        
+                        <div class="flex gap-2">
+                            <input type="number" id="offer-price-${req.id}" placeholder="Harga (Rp)" class="w-1/2 p-2 bg-white rounded border border-gray-200 text-sm outline-none focus:border-pink-500">
+                            <select id="offer-cond-${req.id}" class="w-1/2 p-2 bg-white rounded border border-gray-200 text-sm outline-none">
+                                <option value="Like New">Like New</option>
+                                <option value="Used">Preloved</option>
+                            </select>
+                        </div>
+                        
+                        <input type="number" id="offer-phone-${req.id}" placeholder="WA Anda (ex: 0812345)" class="w-full p-2 bg-green-50 rounded border border-green-200 text-sm outline-none focus:border-green-500">
+
+                        <button onclick="submitOffer(${req.id})" class="w-full bg-gray-900 text-white font-bold py-2.5 rounded-xl hover:bg-black transition text-sm shadow-md mt-1">
+                            Kirim ke Buyer
+                        </button>
+                    </div>
+                `;
+                sellerRequestsList.appendChild(card);
+            });
+        }
+
+        // --- HELPER FUNCTIONS ---
+
+        function previewImage(input, id) {
+            const file = input.files[0];
+            if (file) {
+                if (file.size > 500000) { alert("File terlalu besar (Max 500KB)"); input.value = ""; return; }
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const box = document.getElementById(`preview-box-${id}`);
+                    box.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover rounded-lg">`;
+                    box.classList.remove('border-dashed');
+                    input.dataset.base64 = e.target.result;
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function submitOffer(reqId) {
+            const name = document.getElementById(`offer-name-${reqId}`).value;
+            const price = document.getElementById(`offer-price-${reqId}`).value;
+            const cond = document.getElementById(`offer-cond-${reqId}`).value;
+            const phone = document.getElementById(`offer-phone-${reqId}`).value;
+            const fileInput = document.getElementById(`file-${reqId}`);
+            
+            if(!name || !price || !phone) return alert("Data belum lengkap!");
+
+            const offers = getStorage('offers');
+            try {
+                offers.push({
+                    id: Date.now(),
+                    requestId: reqId,
+                    sellerName: "Seller" + Math.floor(Math.random()*100), 
+                    sellerPhone: phone,
+                    itemName: name,
+                    price: price,
+                    condition: cond,
+                    image: fileInput.dataset.base64 || null
+                });
+                saveStorage('offers', offers);
+                alert("Terkirim!");
+                loadSellerRequests();
+            } catch (e) {
+                alert("Storage Penuh. Gunakan foto kecil.");
+            }
+        }
+
+        // --- UTILS ---
+        function getStorage(key) { return JSON.parse(localStorage.getItem(STORAGE_KEY + key) || '[]'); } 
+        function saveStorage(key, data) { localStorage.setItem(STORAGE_KEY + key, JSON.stringify(data)); }
+        function resetApp() { if(confirm("Hapus Data?")) { localStorage.clear(); location.reload(); } }
+        function openWhatsapp(phone, item, price) {
+            let p = phone.replace(/\D/g, ''); if (p.startsWith('0')) p = '62' + p.substring(1);
+            window.open(`https://wa.me/${p}?text=${encodeURIComponent(`Halo, minat ${item} harga ${price}`)}`, '_blank');
+        }
+
+        function addUserMessage(text) {
+            const div = document.createElement('div');
+            div.className = 'user-msg message-bubble';
+            div.innerText = text;
+            chatArea.appendChild(div);
+            scrollToBottom();
+        }
+
+        function addSystemMessage(html, id = null) {
+            const div = document.createElement('div');
+            if(id) div.id = id;
+            div.className = 'system-msg';
+            div.innerHTML = html;
+            chatArea.appendChild(div);
+            scrollToBottom();
+        }
+
+        function scrollToBottom() {
+            setTimeout(() => { 
+                chatArea.scrollTop = chatArea.scrollHeight; 
+            }, 100);
+        }
+
+        // --- EVENTS ---
+        const roleBtn = document.getElementById('toggle-role-btn');
+        const buyerView = document.getElementById('buyer-view');
+        const sellerView = document.getElementById('seller-view');
+
+        roleBtn.onclick = () => {
+            if (currentRole === 'buyer') {
+                currentRole = 'seller';
+                buyerView.classList.add('hidden');
+                sellerView.classList.remove('hidden');
+                sellerView.classList.add('flex');
+                roleBtn.innerText = "Kembali ke Buyer";
+                roleBtn.className = "bg-white text-gray-900 px-4 py-1.5 rounded-full text-xs font-bold shadow-sm border";
+                loadSellerRequests();
+            } else {
+                currentRole = 'buyer';
+                sellerView.classList.add('hidden');
+                sellerView.classList.remove('flex');
+                buyerView.classList.remove('hidden');
+                roleBtn.innerText = "Mode Seller";
+                roleBtn.className = "bg-gray-900 text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg";
+                scrollToBottom();
+            }
+        };
+
+        document.getElementById('send-btn').onclick = () => {
+            const val = userInput.value;
+            if(val.trim()) { userInput.value = ''; sendRequest(val); }
+        }
+        userInput.onkeypress = (e) => { if(e.key === 'Enter') document.getElementById('send-btn').click(); }
+    </script>
+</body>
+</html>
